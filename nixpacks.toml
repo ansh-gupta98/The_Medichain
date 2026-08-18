@@ -1,0 +1,10 @@
+[phases.setup]
+nixPkgs = ["libGL", "glib", "libz"]
+
+[phases.install]
+cmds = [
+  "pip install -r backend/requirements.txt"
+]
+
+[start]
+cmd = "sh start.sh"
