@@ -1,13 +1,12 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # Dockerfile — MediChain FastAPI Backend
-# Optimized for Railway deployment (no RAM restrictions)
+# Optimized for Railway deployment
 # Model: InsightFace buffalo_l (ArcFace R100) — BEST accuracy 99.83%
 # ─────────────────────────────────────────────────────────────────────────────
 
 FROM python:3.11-slim
 
 # Install system libs needed by OpenCV and InsightFace
-# build-essential + g++ needed to compile InsightFace Cython extensions
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libglib2.0-0 \
     libsm6 \
@@ -29,8 +28,6 @@ RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
 # Pre-download InsightFace buffalo_l model during build
-# buffalo_l = ArcFace R100 — 99.83% accuracy — best model available
-# Pre-downloading avoids cold-start delay on first request
 RUN python -c "\
 from insightface.app import FaceAnalysis; \
 app = FaceAnalysis(name='buffalo_l', providers=['CPUExecutionProvider']); \
@@ -40,8 +37,5 @@ print('InsightFace buffalo_l (ArcFace R100) downloaded successfully.')"
 # Copy application code
 COPY . .
 
-# Railway / Render both use PORT env variable
-ENV PORT=8000
-
-# Use sh -c so shell properly expands $PORT environment variable
-CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 2"]
+# ✅ FIXED: Python reads PORT directly — no shell expansion needed
+CMD ["python", "-c", "import os,uvicorn; uvicorn.run('main:app', host='0.0.0.0', port=int(os.environ.get('PORT',8000)), workers=2)"]
