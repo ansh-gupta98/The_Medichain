@@ -41,7 +41,8 @@ class FaceService:
             logger.info(f"Loading InsightFace '{settings.INSIGHTFACE_MODEL}' model...")
             self._app = FaceAnalysis(
                 name=settings.INSIGHTFACE_MODEL,
-                providers=["CPUExecutionProvider"],  # CPU — no GPU needed for accuracy
+                providers=["CPUExecutionProvider"],
+                allowed_modules=["detection", "recognition"],  # Drop 140MB 3D landmark & genderage models
             )
             self._app.prepare(
                 ctx_id=-1,  # -1 = CPU
@@ -63,13 +64,13 @@ class FaceService:
         return self._loaded
 
     # ─────────────────────────────────────────────────────────────────────────
-    # Image Preprocessing — critical for accuracy
+    # Image Preprocessing — critical for accuracy & memory efficiency
     # ─────────────────────────────────────────────────────────────────────────
 
     def _preprocess_image(self, image_bytes: bytes) -> np.ndarray:
         """
-        Convert bytes → BGR image with quality improvements.
-        Better preprocessing = better embedding quality = better matching.
+        Convert bytes → BGR image with memory-safe resizing.
+        Keeps images within reasonable size to avoid OOM on 512MB RAM hosts.
         """
         nparr = np.frombuffer(image_bytes, np.uint8)
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
@@ -77,18 +78,16 @@ class FaceService:
         if img is None:
             raise ValueError("Could not decode image. Send a valid JPEG/PNG/WEBP.")
 
-        # Resize if too small — InsightFace needs at least 112x112 face region
         h, w = img.shape[:2]
-        if h < 480 or w < 480:
-            scale = max(480 / h, 480 / w)
-            img = cv2.resize(img, (int(w * scale), int(h * scale)),
-                             interpolation=cv2.INTER_LANCZOS4)
 
-        # Resize if too large — speeds up detection without losing quality
-        if h > 1920 or w > 1920:
-            scale = min(1920 / h, 1920 / w)
-            img = cv2.resize(img, (int(w * scale), int(h * scale)),
-                             interpolation=cv2.INTER_AREA)
+        # Downscale large camera photos to max 640px to protect against RAM spikes
+        max_dim = max(h, w)
+        if max_dim > 640:
+            scale = 640.0 / max_dim
+            img = cv2.resize(img, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA)
+        elif min(h, w) < 112:
+            scale = 112.0 / min(h, w)
+            img = cv2.resize(img, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_LINEAR)
 
         return img
 
@@ -194,6 +193,12 @@ class FaceService:
                 embeddings.append(emb)
                 scores.append(float(face.det_score))
                 logger.info(f"Photo {i+1}: OK (det_score={face.det_score:.3f})")
+
+            del img
+            del faces
+
+        import gc
+        gc.collect()
 
         if not embeddings:
             return None, 0, failed

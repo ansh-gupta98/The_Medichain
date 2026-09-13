@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     # buffalo_l  = ArcFace R100 — 99.83% accuracy — BEST (use on Railway)
     # buffalo_sc = ArcFace R50  — 99.70% accuracy — lighter (Render free only)
     INSIGHTFACE_MODEL: str = "buffalo_l"
-    INSIGHTFACE_DET_SIZE: int = 640
+    INSIGHTFACE_DET_SIZE: int = 480
     # ArcFace R100 threshold: similarity >= 0.50 = valid match
     # Conservative for medical use — prevents false positives
     FACE_MATCH_THRESHOLD: float = 0.50
