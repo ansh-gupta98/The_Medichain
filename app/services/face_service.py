@@ -153,25 +153,25 @@ class FaceService:
 
         Returns: (averaged_embedding, success_count, fail_count)
         """
+        self._ensure_loaded()
+
         embeddings = []
         scores = []
         failed = 0
 
         for i, img_bytes in enumerate(image_bytes_list):
-            nparr = np.frombuffer(img_bytes, np.uint8)
-            img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-
-            if img is None:
+            try:
+                img = self._preprocess_image(img_bytes)
+            except Exception as e:
                 failed += 1
-                logger.warning(f"Photo {i+1}: could not decode.")
+                logger.warning(f"Photo {i+1}: could not decode/preprocess: {e}")
                 continue
 
             try:
-                img = self._preprocess_image(img_bytes)
-                faces = self._app.get(img) if self._loaded else []
+                faces = self._app.get(img)
             except Exception as e:
                 failed += 1
-                logger.warning(f"Photo {i+1} error: {e}")
+                logger.warning(f"Photo {i+1} inference error: {e}")
                 continue
 
             if not faces:
