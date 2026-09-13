@@ -9,9 +9,9 @@ port = int(os.environ.get("PORT", 8000))
 print(f"[MediChain] Starting on port {port}", flush=True)
 
 uvicorn.run(
-    "main:app",      # main.py at project root
+    "main:app",
     host="0.0.0.0",
     port=port,
-    workers=2,
+    workers=1,        # multi-worker needs __main__ guard — use 1 worker in container
     log_level="info",
 )
