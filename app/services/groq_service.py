@@ -38,6 +38,22 @@ class GroqService:
     def is_configured(self) -> bool:
         return bool(settings.GROQ_API_KEY or os.environ.get("GROQ_API_KEY") or settings.CEREBRAS_API_KEY)
 
+    @property
+    def summary_model(self) -> str:
+        """
+        Dynamically fetch the Groq summary model name from environment variable GROQ_MODEL.
+        Defaults to settings.GROQ_MODEL or 'llama-3.3-70b-versatile'.
+        """
+        return os.environ.get("GROQ_MODEL") or getattr(settings, "GROQ_MODEL", None) or "llama-3.3-70b-versatile"
+
+    @property
+    def vision_model(self) -> str:
+        """
+        Dynamically fetch the Groq vision model name from environment variable GROQ_VISION_MODEL.
+        Defaults to settings.GROQ_VISION_MODEL or 'llama-3.2-11b-vision-preview'.
+        """
+        return os.environ.get("GROQ_VISION_MODEL") or getattr(settings, "GROQ_VISION_MODEL", None) or "llama-3.2-11b-vision-preview"
+
     # ─────────────────────────────────────────────────────────────────────────
     # Clinical Summary Generator for Doctor Triage
     # ─────────────────────────────────────────────────────────────────────────
@@ -107,8 +123,11 @@ Format as clear bullet points. Direct, clinical, and factual. Do not hallucinate
             client = self._get_client()
             prompt = self._build_summary_prompt(patient_profile, medical_records)
 
+            chosen_model = self.summary_model
+            logger.info(f"Using Groq summary model: {chosen_model}")
+
             response = client.chat.completions.create(
-                model=settings.GROQ_MODEL,
+                model=chosen_model,
                 messages=[
                     {
                         "role": "system",
@@ -125,7 +144,7 @@ Format as clear bullet points. Direct, clinical, and factual. Do not hallucinate
             )
 
             summary = response.choices[0].message.content.strip()
-            logger.info("Groq medical summary generated successfully.")
+            logger.info(f"Groq medical summary generated successfully with {chosen_model}.")
             return summary
 
         except Exception as e:
@@ -200,8 +219,11 @@ Return a valid JSON object strictly matching this schema:
   "raw_text": "Complete transcribed text from the document"
 }}"""
 
+            chosen_vision_model = self.vision_model
+            logger.info(f"Using Groq vision OCR model: {chosen_vision_model}")
+
             response = client.chat.completions.create(
-                model=settings.GROQ_VISION_MODEL,
+                model=chosen_vision_model,
                 messages=[
                     {"role": "system", "content": system_instruction},
                     {
