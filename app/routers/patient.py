@@ -9,7 +9,8 @@ Endpoints:
 """
 
 import logging
-from typing import List
+from typing import List, Optional
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, File, UploadFile, HTTPException, Form, status
 from fastapi.responses import JSONResponse
@@ -19,9 +20,13 @@ from app.core.schemas import (
     PatientRegisterResponse,
     EmbeddingUploadResponse,
     APIResponse,
+    MedicalDocumentExtractResponse,
+    MedicineItem,
+    LabResultItem,
 )
 from app.services.face_service import face_service
 from app.services.firebase_service import firebase_service
+from app.services.groq_service import groq_service
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -208,3 +213,180 @@ async def get_patient(patient_uid: str):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e),
         )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# POST /patient/upload-document (Medical Bills, Prescriptions, Lab Reports OCR)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.post(
+    "/upload-document",
+    response_model=MedicalDocumentExtractResponse,
+    summary="Upload medical bill, prescription, or lab report for AI OCR extraction",
+    description=(
+        "Patients can upload images of past medical bills, pharmacy receipts, "
+        "handwritten/printed doctor prescriptions, or diagnostic laboratory reports. "
+        "Groq Vision AI extracts medicines, dosages, test results, diagnoses, and financial totals, "
+        "and saves the structured record to the patient's Firestore medical history."
+    ),
+)
+async def upload_medical_document(
+    patient_uid: str = Form(..., description="Firebase Auth UID of the patient"),
+    document: UploadFile = File(
+        ...,
+        description="Photo or scan of medical bill, prescription, or lab report (JPEG/PNG/WEBP)",
+    ),
+    document_type: str = Form(
+        "auto",
+        description="Hint: 'auto', 'medical_bill', 'prescription', or 'lab_report'",
+    ),
+    notes: Optional[str] = Form(
+        None,
+        description="Optional additional notes from patient",
+    ),
+):
+    # ── Validate file type ────────────────────────────────────────────────────
+    allowed_types = {"image/jpeg", "image/png", "image/webp"}
+    if document.content_type not in allowed_types:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail=(
+                f"File '{document.filename}' has unsupported type '{document.content_type}'. "
+                f"Allowed types: JPEG, PNG, WEBP."
+            ),
+        )
+
+    # ── Verify patient exists ─────────────────────────────────────────────────
+    firebase_service.initialize()
+    profile = firebase_service.get_patient_profile(patient_uid)
+    if not profile:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Patient not found with UID: {patient_uid}. Register profile first.",
+        )
+
+    # ── Read image bytes ──────────────────────────────────────────────────────
+    doc_bytes = await document.read()
+    if len(doc_bytes) == 0:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Uploaded file is empty.",
+        )
+
+    # ── Extract structured data via Groq Vision OCR ───────────────────────────
+    logger.info(
+        f"Extracting medical document for patient {patient_uid} "
+        f"({len(doc_bytes)/1024:.1f} KB, type: {document_type})..."
+    )
+    extracted = groq_service.extract_medical_document(
+        image_bytes=doc_bytes,
+        mime_type=document.content_type,
+        document_type_hint=document_type,
+    )
+
+    doc_date = extracted.get("date") or datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    facility = extracted.get("hospital_or_clinic") or "Medical Document Upload"
+
+    # ── Build record payload for Firestore ────────────────────────────────────
+    record_payload = {
+        "date": doc_date,
+        "hospital": facility,
+        "hospital_or_clinic": extracted.get("hospital_or_clinic"),
+        "doctor_name": extracted.get("doctor_name"),
+        "document_type": extracted.get("document_type", "medical_record"),
+        "diagnosis": extracted.get("diagnosis") or "Medical record extracted via OCR",
+        "prescription": extracted.get("prescription") or "",
+        "medicines": extracted.get("medicines", []),
+        "lab_results": extracted.get("lab_results", []),
+        "total_amount": extracted.get("total_amount"),
+        "summary": extracted.get("summary", ""),
+        "raw_text": extracted.get("raw_text", ""),
+        "notes": notes or extracted.get("summary", ""),
+        "uploaded_by": "patient",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+    record_id = firebase_service.add_medical_record(patient_uid, record_payload)
+    logger.info(f"Medical document saved with record_id: {record_id}")
+
+    # ── Update patient profile if new diagnosis or active medicines found ─────
+    profile_updates = {}
+    if extracted.get("diagnosis") and extracted["diagnosis"] != "None":
+        existing_diagnoses = profile.get("diagnoses", "")
+        new_diag = extracted["diagnosis"]
+        if new_diag.lower() not in existing_diagnoses.lower():
+            profile_updates["diagnoses"] = (
+                f"{existing_diagnoses}; {new_diag}".strip("; ")
+                if existing_diagnoses
+                else new_diag
+            )
+
+    if profile_updates:
+        firebase_service.upsert_patient_profile(patient_uid, profile_updates)
+
+    # ── Build response ────────────────────────────────────────────────────────
+    medicines_list = [
+        MedicineItem(
+            name=m.get("name", "Unknown"),
+            dosage=m.get("dosage"),
+            frequency=m.get("frequency"),
+            duration=m.get("duration"),
+        )
+        for m in extracted.get("medicines", [])
+        if isinstance(m, dict) and m.get("name")
+    ]
+
+    lab_results_list = [
+        LabResultItem(
+            test_name=lab.get("test_name", "Lab Test"),
+            result_value=str(lab.get("result_value", "")),
+            reference_range=lab.get("reference_range"),
+            status=lab.get("status"),
+        )
+        for lab in extracted.get("lab_results", [])
+        if isinstance(lab, dict) and lab.get("test_name")
+    ]
+
+    return MedicalDocumentExtractResponse(
+        success=True,
+        patient_uid=patient_uid,
+        record_id=record_id,
+        document_type=extracted.get("document_type", "medical_record"),
+        hospital_or_clinic=extracted.get("hospital_or_clinic"),
+        doctor_name=extracted.get("doctor_name"),
+        date=doc_date,
+        diagnosis=extracted.get("diagnosis"),
+        prescription=extracted.get("prescription"),
+        medicines=medicines_list,
+        lab_results=lab_results_list,
+        total_amount=extracted.get("total_amount"),
+        summary=extracted.get("summary", "Document processed successfully."),
+        message="Medical document analyzed, OCR extracted, and saved to medical records successfully.",
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GET /patient/{patient_uid}/records
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.get(
+    "/{patient_uid}/records",
+    response_model=APIResponse,
+    summary="Get all medical records, bills, prescriptions, and lab reports for patient",
+)
+async def get_patient_records(patient_uid: str):
+    try:
+        firebase_service.initialize()
+        records = firebase_service.get_medical_records(patient_uid)
+        return APIResponse(
+            success=True,
+            message=f"Retrieved {len(records)} medical record(s).",
+            data=records,
+        )
+    except Exception as e:
+        logger.error(f"Get patient records error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e),
+        )
+

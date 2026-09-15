@@ -84,8 +84,43 @@ class IdentifyResponse(BaseModel):
     patient_data: Optional[PatientMedicalData] = None
     ai_summary: Optional[str] = Field(
         None,
-        description="Cerebras AI-generated clinical summary for the doctor"
+        description="Groq LLaMA AI-generated clinical summary for the doctor"
     )
+    message: str
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Patient Document Upload & OCR Extraction
+# ─────────────────────────────────────────────────────────────────────────────
+
+class MedicineItem(BaseModel):
+    name: str
+    dosage: Optional[str] = None
+    frequency: Optional[str] = None
+    duration: Optional[str] = None
+
+
+class LabResultItem(BaseModel):
+    test_name: str
+    result_value: str
+    reference_range: Optional[str] = None
+    status: Optional[str] = None  # NORMAL, HIGH, LOW, CRITICAL
+
+
+class MedicalDocumentExtractResponse(BaseModel):
+    success: bool
+    patient_uid: str
+    record_id: str
+    document_type: str
+    hospital_or_clinic: Optional[str] = None
+    doctor_name: Optional[str] = None
+    date: Optional[str] = None
+    diagnosis: Optional[str] = None
+    prescription: Optional[str] = None
+    medicines: List[MedicineItem] = []
+    lab_results: List[LabResultItem] = []
+    total_amount: Optional[str] = None
+    summary: str
     message: str
 
 
@@ -97,5 +132,7 @@ class HealthResponse(BaseModel):
     status: str
     insightface_loaded: bool
     firebase_connected: bool
-    cerebras_configured: bool
-    version: str = "1.0.0"
+    groq_configured: bool = True
+    cerebras_configured: Optional[bool] = None
+    version: str = "1.1.0"
+

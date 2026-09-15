@@ -28,7 +28,7 @@ from app.core.schemas import (
 )
 from app.services.face_service import face_service
 from app.services.firebase_service import firebase_service
-from app.services.cerebras_service import cerebras_service
+from app.services.groq_service import groq_service
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -190,13 +190,13 @@ async def identify_patient(
         embedding_updated_at=profile.get("embedding_updated_at"),
     )
 
-    # ── Step 6: Cerebras AI clinical summary ─────────────────────────────────
+    # ── Step 6: Groq AI clinical summary ─────────────────────────────────────
     ai_summary = None
     if include_ai_summary:
         try:
-            ai_summary = cerebras_service.generate_medical_summary(profile, records_raw)
+            ai_summary = groq_service.generate_medical_summary(profile, records_raw)
         except Exception as e:
-            logger.warning(f"Cerebras summary failed (non-critical): {e}")
+            logger.warning(f"Groq summary failed (non-critical): {e}")
             ai_summary = "AI summary temporarily unavailable."
 
     # ── Step 7: Return response ───────────────────────────────────────────────

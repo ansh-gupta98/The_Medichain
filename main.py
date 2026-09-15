@@ -46,9 +46,9 @@ app = FastAPI(
         "AI-powered medical identity backend. "
         "Face recognition via InsightFace ArcFace R100, "
         "patient data from Firebase Firestore, "
-        "AI summaries via Cerebras LLaMA."
+        "AI summaries & Vision Document OCR via Groq LLaMA."
     ),
-    version="1.0.0",
+    version="1.1.0",
     lifespan=lifespan,
 )
 

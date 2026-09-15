@@ -27,9 +27,14 @@ class Settings(BaseSettings):
     FIREBASE_CREDENTIALS_PATH: str = "firebase_credentials.json"
     FIRESTORE_PATIENTS_COLLECTION: str = "patients"
 
-    # ── Cerebras ──────────────────────────────────────────────────────────────
+    # ── Groq AI (Ultra-fast LLM Summaries & Vision OCR) ───────────────────────
+    GROQ_API_KEY: str = ""
+    GROQ_MODEL: str = "llama-3.3-70b-versatile"
+    GROQ_VISION_MODEL: str = "llama-3.2-11b-vision-preview"
+
+    # Optional legacy fallback
     CEREBRAS_API_KEY: str = ""
-    CEREBRAS_MODEL: str = "llama3.1-70b"  # 2100 tokens/sec — fastest available
+    CEREBRAS_MODEL: str = "llama3.1-70b"
 
     # ── Storage ───────────────────────────────────────────────────────────────
     # Temporary directory for uploaded photos (cleaned after processing)

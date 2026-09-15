@@ -15,8 +15,8 @@ numpy==1.26.4
 firebase-admin==6.6.0
 google-cloud-firestore==2.19.0
 
-# ─── Cerebras AI ──────────────────────────────────────────────────────────
-cerebras-cloud-sdk==1.21.0
+# ─── Groq AI (LLM Summaries & Multimodal Vision OCR) ─────────────────────
+groq==0.37.1
 
 # ─── Utilities ────────────────────────────────────────────────────────────
 python-dotenv==1.0.1

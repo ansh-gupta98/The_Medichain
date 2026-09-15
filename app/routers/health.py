@@ -7,7 +7,7 @@ from fastapi import APIRouter
 from app.core.schemas import HealthResponse
 from app.services.face_service import face_service
 from app.services.firebase_service import firebase_service
-from app.services.cerebras_service import cerebras_service
+from app.services.groq_service import groq_service
 
 router = APIRouter()
 
@@ -16,12 +16,12 @@ router = APIRouter()
 async def health_check():
     """
     Health check endpoint.
-    Render pings this to verify the service is alive.
+    Reports status of sub-systems: InsightFace, Firebase, Groq AI.
     """
     return HealthResponse(
         status="healthy",
         insightface_loaded=face_service.is_loaded,
         firebase_connected=firebase_service.is_connected,
-        cerebras_configured=cerebras_service.is_configured,
-        version="1.0.0",
+        groq_configured=groq_service.is_configured,
+        version="1.1.0",
     )
