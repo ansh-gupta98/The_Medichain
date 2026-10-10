@@ -19,8 +19,8 @@ google-cloud-firestore==2.19.0
 groq==0.37.1
 
 # ─── LLM Gateway & Monitoring ─────────────────────────────────────────────
-litellm==1.52.0             # LLM gateway (Gemini primary + Groq fallback)
-langsmith==0.1.147          # LangSmith tracing & observability
+litellm>=1.53.1             # LLM gateway (Gemini primary + Groq fallback)
+langsmith>=0.1.147          # LangSmith tracing & observability
 
 # ─── Utilities ────────────────────────────────────────────────────────────
 python-dotenv==1.0.1
