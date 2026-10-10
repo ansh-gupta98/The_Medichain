@@ -1,12 +1,15 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # Dockerfile — MediChain FastAPI Backend
-# Optimized for Railway deployment
-# Model: InsightFace buffalo_l (ArcFace R100) — BEST accuracy 99.83%
+# Ultra-lightweight build optimized for Railway / Koyeb / Render
 # ─────────────────────────────────────────────────────────────────────────────
 
 FROM python:3.11-slim
 
-# Install system libs needed by OpenCV and InsightFace
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PORT=8000
+
+# 1. Install build dependencies, build insightface wheels, then purge build tools
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libglib2.0-0 \
     libsm6 \
@@ -14,7 +17,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxext6 \
     libgl1 \
     libgomp1 \
-    wget \
     build-essential \
     g++ \
     python3-dev \
@@ -22,20 +24,26 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Copy and install Python dependencies first (better layer caching)
+# 2. Install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+    pip install --no-cache-dir -r requirements.txt && \
+    # Remove compiler packages to drastically shrink image size
+    apt-get purge -y --auto-remove build-essential g++ python3-dev && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /root/.cache
 
-# Pre-download InsightFace buffalo_l model during build
+# 3. Download buffalo_l and purge the .zip archive to save ~300MB
 RUN python -c "\
 from insightface.app import FaceAnalysis; \
 app = FaceAnalysis(name='buffalo_l', providers=['CPUExecutionProvider']); \
 app.prepare(ctx_id=-1, det_size=(640, 640)); \
-print('InsightFace buffalo_l (ArcFace R100) downloaded successfully.')"
+print('InsightFace buffalo_l loaded.')" && \
+    rm -f /root/.insightface/models/buffalo_l.zip && \
+    rm -rf /root/.cache
 
-# Copy application code
+# 4. Copy app code
 COPY . .
 
-# ✅ FIXED: Python reads PORT directly — no shell expansion needed
-CMD ["python", "-c", "import os,uvicorn; uvicorn.run('main:app', host='0.0.0.0', port=int(os.environ.get('PORT',8000)), workers=2)"]
+# 5. Start app using environment PORT
+CMD ["python", "-c", "import os,uvicorn; uvicorn.run('main:app', host='0.0.0.0', port=int(os.environ.get('PORT', 8000)), workers=2)"]
