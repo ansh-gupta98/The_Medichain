@@ -7,7 +7,8 @@ FROM python:3.11-slim
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PORT=8000
+    PORT=8000 \
+    WEB_CONCURRENCY=1
 
 # 1. Install build dependencies, build insightface wheels, then purge build tools
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -33,10 +34,10 @@ RUN pip install --no-cache-dir --upgrade pip && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /root/.cache
 
-# 3. Download buffalo_l and purge the .zip archive to save ~300MB
+# 3. Download buffalo_l (detection + recognition only, skipping 3D landmarks & genderage to save ~150MB)
 RUN python -c "\
 from insightface.app import FaceAnalysis; \
-app = FaceAnalysis(name='buffalo_l', providers=['CPUExecutionProvider']); \
+app = FaceAnalysis(name='buffalo_l', providers=['CPUExecutionProvider'], allowed_modules=['detection', 'recognition']); \
 app.prepare(ctx_id=-1, det_size=(640, 640)); \
 print('InsightFace buffalo_l loaded.')" && \
     rm -f /root/.insightface/models/buffalo_l.zip && \
@@ -45,5 +46,5 @@ print('InsightFace buffalo_l loaded.')" && \
 # 4. Copy app code
 COPY . .
 
-# 5. Start app using environment PORT
-CMD ["python", "-c", "import os,uvicorn; uvicorn.run('main:app', host='0.0.0.0', port=int(os.environ.get('PORT', 8000)), workers=2)"]
+# 5. Start app using start.py (limits threads and runs 1 worker to prevent OOM)
+CMD ["python", "start.py"]

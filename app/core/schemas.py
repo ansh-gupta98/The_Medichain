@@ -188,6 +188,8 @@ class DoctorQueryRequest(BaseModel):
 
 
 class DoctorQueryResponse(BaseModel):
+    model_config = {"protected_namespaces": ()}
+
     success: bool
     patient_uid: str
     question: str
