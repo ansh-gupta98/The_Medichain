@@ -1,62 +1,66 @@
 """
 Application configuration via environment variables.
-All secrets loaded from .env — never hardcoded.
+All secrets loaded from .env or Railway environment — never hardcoded.
 """
 
-from pydantic_settings import BaseSettings
-from typing import List
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import List, Optional
 
 
 class Settings(BaseSettings):
-    # ── FastAPI ──────────────────────────────────────────────────────────────
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="allow",  # Allow extra Railway / deployment environment variables without crashing
+    )
+
+    # ── FastAPI / Server ─────────────────────────────────────────────────────
     APP_ENV: str = "development"
     SECRET_KEY: str = "change-me-in-production"
     ALLOWED_ORIGINS: List[str] = ["*"]
+    MEDICHAIN_HOST: str = "0.0.0.0"
+    MEDICHAIN_QR_SECRET: str = "medichain-qr-secret-key"
 
     # ── InsightFace ───────────────────────────────────────────────────────────
-    # buffalo_l  = ArcFace R100 — 99.83% accuracy — BEST (use on Railway)
-    # buffalo_sc = ArcFace R50  — 99.70% accuracy — lighter (Render free only)
+    # buffalo_l = ArcFace R100 — 99.83% accuracy (production)
     INSIGHTFACE_MODEL: str = "buffalo_l"
-    INSIGHTFACE_DET_SIZE: int = 480
-    # ArcFace R100 threshold: similarity >= 0.50 = valid match
-    # Conservative for medical use — prevents false positives
-    FACE_MATCH_THRESHOLD: float = 0.50
+    INSIGHTFACE_DET_SIZE: int = 640
+    INSIGHTFACE_HOME: str = "/root/.insightface"
+    FACE_MATCH_THRESHOLD: float = 0.45
 
     # ── Firebase ──────────────────────────────────────────────────────────────
-    # Path to service-account JSON downloaded from Firebase console
     FIREBASE_CREDENTIALS_PATH: str = "firebase_credentials.json"
+    FIREBASE_CREDENTIALS_JSON: str = ""
     FIRESTORE_PATIENTS_COLLECTION: str = "patients"
 
-    # ── Groq AI (Ultra-fast LLM Summaries & Vision OCR) ───────────────────────
+    # ── Groq AI (Vision OCR & Fallback) ───────────────────────────────────────
     GROQ_API_KEY: str = ""
     GROQ_MODEL: str = "llama-3.3-70b-versatile"
     GROQ_VISION_MODEL: str = "llama-3.2-11b-vision-preview"
 
-    # Optional legacy fallback
-    CEREBRAS_API_KEY: str = ""
-    CEREBRAS_MODEL: str = "llama3.1-70b"
-
     # ── LLM Gateway (LiteLLM) ─────────────────────────────────────────────────
     GEMINI_API_KEY: str = ""
-    GEMINI_MODEL: str = "gemini/gemini-1.5-flash"       # fast primary
-    GEMINI_PRO_MODEL: str = "gemini/gemini-1.5-pro"     # detailed summaries
-    LLM_FALLBACK_MODEL: str = "groq/llama-3.3-70b-versatile"  # Groq fallback
+    GEMINI_MODEL: str = "gemini/gemini-1.5-flash"
+    GEMINI_PRO_MODEL: str = "gemini/gemini-1.5-pro"
+    LLM_FALLBACK_MODEL: str = "groq/llama-3.3-70b-versatile"
 
-    # ── LangSmith Monitoring ──────────────────────────────────────────────────
+    # ── LangChain & LangSmith Observability ───────────────────────────────────
+    # Standard LangChain environment variables
+    LANGCHAIN_TRACING_V2: bool = False
+    LANGCHAIN_API_KEY: str = ""
+    LANGCHAIN_PROJECT: str = "medichain"
+    LANGCHAIN_ENDPOINT: str = "https://api.smith.langchain.com"
+
+    # Backward-compatible alias
     LANGSMITH_API_KEY: str = ""
     LANGSMITH_PROJECT: str = "medichain"
-    LANGSMITH_TRACING: bool = False  # set True when key provided
+    LANGSMITH_TRACING: bool = False
 
-    # ── Doctor audit collection ───────────────────────────────────────────────
+    # ── Doctor Audit ─────────────────────────────────────────────────────────
     DOCTOR_QUERIES_COLLECTION: str = "doctor_queries"
 
     # ── Storage ───────────────────────────────────────────────────────────────
-    # Temporary directory for uploaded photos (cleaned after processing)
     TEMP_UPLOAD_DIR: str = "/tmp/medichain_uploads"
-
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
 
 
 settings = Settings()

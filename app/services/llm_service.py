@@ -34,15 +34,19 @@ class LLMService:
         if settings.GROQ_API_KEY:
             os.environ["GROQ_API_KEY"] = settings.GROQ_API_KEY
 
-        # LangSmith tracing setup
-        if settings.LANGSMITH_API_KEY:
-            os.environ["LANGSMITH_API_KEY"] = settings.LANGSMITH_API_KEY
-            os.environ["LANGCHAIN_PROJECT"] = settings.LANGSMITH_PROJECT
+        # LangChain / LangSmith tracing setup
+        langchain_key = settings.LANGCHAIN_API_KEY or settings.LANGSMITH_API_KEY
+        tracing_enabled = settings.LANGCHAIN_TRACING_V2 or settings.LANGSMITH_TRACING or bool(langchain_key)
+
+        if langchain_key and tracing_enabled:
+            os.environ["LANGCHAIN_API_KEY"] = langchain_key
+            os.environ["LANGCHAIN_PROJECT"] = settings.LANGCHAIN_PROJECT or settings.LANGSMITH_PROJECT
             os.environ["LANGCHAIN_TRACING_V2"] = "true"
+            os.environ["LANGCHAIN_ENDPOINT"] = settings.LANGCHAIN_ENDPOINT
             litellm.success_callback = ["langsmith"]
             litellm.failure_callback = ["langsmith"]
             logger.info(
-                f"LangSmith tracing enabled. Project: {settings.LANGSMITH_PROJECT}"
+                f"LangChain/LangSmith tracing enabled. Project: {os.environ['LANGCHAIN_PROJECT']}"
             )
 
         litellm.set_verbose = False
