@@ -36,6 +36,20 @@ class Settings(BaseSettings):
     CEREBRAS_API_KEY: str = ""
     CEREBRAS_MODEL: str = "llama3.1-70b"
 
+    # ── LLM Gateway (LiteLLM) ─────────────────────────────────────────────────
+    GEMINI_API_KEY: str = ""
+    GEMINI_MODEL: str = "gemini/gemini-1.5-flash"       # fast primary
+    GEMINI_PRO_MODEL: str = "gemini/gemini-1.5-pro"     # detailed summaries
+    LLM_FALLBACK_MODEL: str = "groq/llama-3.3-70b-versatile"  # Groq fallback
+
+    # ── LangSmith Monitoring ──────────────────────────────────────────────────
+    LANGSMITH_API_KEY: str = ""
+    LANGSMITH_PROJECT: str = "medichain"
+    LANGSMITH_TRACING: bool = False  # set True when key provided
+
+    # ── Doctor audit collection ───────────────────────────────────────────────
+    DOCTOR_QUERIES_COLLECTION: str = "doctor_queries"
+
     # ── Storage ───────────────────────────────────────────────────────────────
     # Temporary directory for uploaded photos (cleaned after processing)
     TEMP_UPLOAD_DIR: str = "/tmp/medichain_uploads"

@@ -240,6 +240,36 @@ class FirebaseService:
         logger.info(f"Medical record added: {ref.id} for patient: {patient_uid}")
         return ref.id
 
+    # ─────────────────────────────────────────────────────────────────────────
+    # Audit Logging
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def write_audit_log(
+        self,
+        collection: str,
+        data: Dict[str, Any],
+    ) -> str:
+        """
+        Write an audit log entry to any collection.
+        Used for doctor_queries audit trail.
+        Returns the document ID.
+        """
+        from datetime import timezone, datetime
+
+        data["timestamp"] = datetime.now(timezone.utc).isoformat()
+        ref = self.db.collection(collection).add(data)
+        # add() returns (timestamp, DocumentReference)
+        doc_ref = ref[1] if isinstance(ref, tuple) else ref
+        return doc_ref.id
+
+    def get_patient_profile_and_records(
+        self, patient_uid: str
+    ) -> tuple:
+        """Convenience: fetch profile + records in one call."""
+        profile = self.get_patient_profile(patient_uid)
+        records = self.get_medical_records(patient_uid) if profile else []
+        return profile, records
+
 
 # Singleton instance
 firebase_service = FirebaseService()

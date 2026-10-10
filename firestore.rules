@@ -1,41 +1,51 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ── Patients collection ──────────────────────────────────────────────────
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isAuthenticated() && request.auth.uid == uid;
+    }
+
+    function isVerifiedDoctor() {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/doctors/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/doctors/$(request.auth.uid)).data.verified == true;
+    }
+
+    // Patients collection
     match /patients/{patientId} {
-
-      // Patient can read/write their own document
-      allow read, write: if request.auth != null && request.auth.uid == patientId;
-
-      // Verified doctors can read any patient document (read-only)
-      allow read: if request.auth != null
-        && get(/databases/$(database)/documents/doctors/$(request.auth.uid)).data.verified == true;
+      // Patient can read/write own data; verified doctor can read any + create/update
+      allow read: if isOwner(patientId) || isVerifiedDoctor();
+      allow create: if isOwner(patientId) || isVerifiedDoctor();
+      allow update: if isOwner(patientId) || isVerifiedDoctor();
+      allow delete: if false; // No deletion allowed
 
       // Medical records sub-collection
       match /medical_records/{recordId} {
-
-        // Patient reads their own records
-        allow read: if request.auth != null && request.auth.uid == patientId;
-
-        // Verified doctors can read and write records
-        allow read, write: if request.auth != null
-          && get(/databases/$(database)/documents/doctors/$(request.auth.uid)).data.verified == true;
+        allow read: if isOwner(patientId) || isVerifiedDoctor();
+        allow create: if isOwner(patientId) || isVerifiedDoctor();
+        allow update: if isVerifiedDoctor();
+        allow delete: if false;
       }
     }
 
-    // ── Doctors collection ───────────────────────────────────────────────────
+    // Doctors collection
     match /doctors/{doctorId} {
-
-      // Doctors can read/write their own doc
-      allow read, write: if request.auth != null && request.auth.uid == doctorId;
+      allow read: if isAuthenticated();
+      allow write: if isOwner(doctorId);
     }
 
-    // ── Doctor query audit log ───────────────────────────────────────────────
-    match /doctor_queries/{queryId} {
-      allow write: if request.auth != null;
-      allow read: if false; // Admin only
+    // Doctor audit logs — doctors write only, never delete
+    match /doctor_queries/{logId} {
+      allow read: if isVerifiedDoctor();
+      allow create: if isAuthenticated();
+      allow update: if false;
+      allow delete: if false;
     }
   }
 }
