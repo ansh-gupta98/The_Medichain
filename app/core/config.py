@@ -21,9 +21,9 @@ class Settings(BaseSettings):
     MEDICHAIN_HOST: str = "0.0.0.0"
     MEDICHAIN_QR_SECRET: str = "medichain-qr-secret-key"
 
-    # ── InsightFace ───────────────────────────────────────────────────────────
-    # buffalo_l = ArcFace R100 — 99.83% accuracy (production)
-    INSIGHTFACE_MODEL: str = "buffalo_l"
+    # buffalo_sc = ArcFace R50/MBF — ~150MB RAM (Safe for Render 512MB Free tier)
+    # buffalo_l  = ArcFace R100    — ~600MB RAM (Use on Railway 8GB / Koyeb)
+    INSIGHTFACE_MODEL: str = "buffalo_sc"
     INSIGHTFACE_DET_SIZE: int = 320
     INSIGHTFACE_HOME: str = "/root/.insightface"
     FACE_MATCH_THRESHOLD: float = 0.45

@@ -34,13 +34,13 @@ RUN pip install --no-cache-dir --upgrade pip && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /root/.cache
 
-# 3. Download buffalo_l (detection + recognition only, skipping 3D landmarks & genderage to save ~150MB)
+# 3. Download buffalo_sc model (~14MB, ~150MB RAM runtime — fits easily within Render 512MB limit)
 RUN python -c "\
 from insightface.app import FaceAnalysis; \
-app = FaceAnalysis(name='buffalo_l', providers=['CPUExecutionProvider'], allowed_modules=['detection', 'recognition']); \
+app = FaceAnalysis(name='buffalo_sc', providers=['CPUExecutionProvider'], allowed_modules=['detection', 'recognition']); \
 app.prepare(ctx_id=-1, det_size=(320, 320)); \
-print('InsightFace buffalo_l loaded.')" && \
-    rm -f /root/.insightface/models/buffalo_l.zip && \
+print('InsightFace buffalo_sc loaded.')" && \
+    rm -f /root/.insightface/models/buffalo_sc.zip && \
     rm -rf /root/.cache
 
 # 4. Copy app code
