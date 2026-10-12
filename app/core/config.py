@@ -35,14 +35,14 @@ class Settings(BaseSettings):
 
     # ── Groq AI (Vision OCR & Fallback) ───────────────────────────────────────
     GROQ_API_KEY: str = ""
-    GROQ_MODEL: str = "llama-3.3-70b-versatile"
-    GROQ_VISION_MODEL: str = "llama-3.2-11b-vision-preview"
+    GROQ_MODEL: str = "qwen/qwen3.8-27b"
+    GROQ_VISION_MODEL: str = "qwen/qwen3.8-27b"
 
     # ── LLM Gateway (LiteLLM) ─────────────────────────────────────────────────
     GEMINI_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini/gemini-1.5-flash"
     GEMINI_PRO_MODEL: str = "gemini/gemini-1.5-pro"
-    LLM_FALLBACK_MODEL: str = "groq/llama-3.3-70b-versatile"
+    LLM_FALLBACK_MODEL: str = "groq/qwen/qwen3.8-27b"
 
     # ── LangChain & LangSmith Observability ───────────────────────────────────
     # Standard LangChain environment variables

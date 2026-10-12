@@ -66,24 +66,49 @@ class LLMService:
         model: Optional[str] = None,
         max_tokens: int = 1024,
     ) -> str:
-        """Call LLM with automatic Gemini → Groq fallback."""
+        """Call LLM with guaranteed Gemini → Groq fallback."""
         self.setup()
         primary = model or settings.GEMINI_MODEL
 
+        # 1. Try Primary model (e.g. Gemini)
         try:
+            # Quick check: Google AI Studio keys must start with AIzaSy
+            if "gemini" in primary.lower() and not (settings.GEMINI_API_KEY and settings.GEMINI_API_KEY.startswith("AIzaSy")):
+                logger.warning("Gemini API key is invalid or not AI Studio key. Bypassing directly to Groq.")
+                raise ValueError("Valid Google AI Studio key required for Gemini")
+
             response = litellm.completion(
                 model=primary,
                 messages=messages,
                 max_tokens=max_tokens,
-                temperature=0.2,  # low temp for medical accuracy
-                fallbacks=[settings.LLM_FALLBACK_MODEL],
+                temperature=0.2,
                 metadata={"project": settings.LANGSMITH_PROJECT},
             )
-            used_model = response.model or primary
-            logger.info(f"LLM call succeeded via: {used_model}")
+            used_model = getattr(response, "model", primary)
+            logger.info(f"LLM call succeeded via primary: {used_model}")
             return response.choices[0].message.content.strip()
-        except Exception as e:
-            logger.error(f"LLM gateway error: {e}")
+
+        except Exception as primary_err:
+            logger.warning(
+                f"Primary model '{primary}' failed ({primary_err}). "
+                f"Switching to fallback '{settings.LLM_FALLBACK_MODEL}'..."
+            )
+
+        # 2. Try Fallback model (Groq)
+        try:
+            response = litellm.completion(
+                model=settings.LLM_FALLBACK_MODEL,
+                messages=messages,
+                max_tokens=max_tokens,
+                temperature=0.2,
+                metadata={"project": settings.LANGSMITH_PROJECT},
+            )
+            used_model = getattr(response, "model", settings.LLM_FALLBACK_MODEL)
+            logger.info(f"LLM call succeeded via fallback: {used_model}")
+            return response.choices[0].message.content.strip()
+
+        except Exception as fallback_err:
+            logger.error(f"Both primary and fallback LLMs failed. Fallback error: {fallback_err}")
             raise
 
     def generate_medical_summary(
