@@ -16,19 +16,20 @@ start "MediChain Backend" cmd /k "color 0B && title MediChain Backend && python 
 REM Give Uvicorn 2 seconds to initialize port 8000
 timeout /t 2 /nobreak >nul
 
-echo [3/3] Starting Ngrok Secure Tunnel...
-start "MediChain Ngrok Tunnel" cmd /k "color 0E && title MediChain Tunnel && .\ngrok.exe http 8000"
+echo [3/3] Starting Permanent Ngrok Tunnel (Fixed Domain)...
+start "MediChain Ngrok Tunnel" cmd /k "color 0E && title MediChain Tunnel && .\ngrok.exe http --domain=banish-reproach-reflected.ngrok-free.dev 8000"
 
 echo.
 echo ======================================================================
 echo           ALL SYSTEMS LIVE AND READY FOR JUDGES DEMO!
 echo ======================================================================
 echo.
-echo 1. Local Swagger API Docs:   http://127.0.0.1:8000/docs
-echo 2. Ngrok Tunnel Web Monitor: http://127.0.0.1:4040
+echo Permanent Public URL:        https://banish-reproach-reflected.ngrok-free.dev/
+echo Local Swagger API Docs:      http://127.0.0.1:8000/docs
+echo Ngrok Tunnel Web Monitor:    http://127.0.0.1:4040
 echo.
-echo Check the "MediChain Ngrok Tunnel" window for your public HTTPS URL!
-echo Share that URL with your mobile app teammate.
+echo Mobile App Teammate URL:     https://banish-reproach-reflected.ngrok-free.dev/
+echo (This URL is PERMANENT and will NEVER change on restart!)
 echo ======================================================================
 echo.
 pause
