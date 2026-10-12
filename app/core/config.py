@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     # ── InsightFace ───────────────────────────────────────────────────────────
     # buffalo_l = ArcFace R100 — 99.83% accuracy (production)
     INSIGHTFACE_MODEL: str = "buffalo_l"
-    INSIGHTFACE_DET_SIZE: int = 640
+    INSIGHTFACE_DET_SIZE: int = 320
     INSIGHTFACE_HOME: str = "/root/.insightface"
     FACE_MATCH_THRESHOLD: float = 0.45
 

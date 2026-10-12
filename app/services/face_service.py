@@ -137,7 +137,14 @@ class FaceService:
         if norm == 0:
             return None, "Invalid face embedding (zero norm)."
 
-        return (embedding / norm).astype(np.float32), "OK"
+        normalized_emb = (embedding / norm).astype(np.float32)
+
+        # Explicitly clean up large arrays to keep memory strictly under 512MB
+        del img_bgr, faces
+        import gc
+        gc.collect()
+
+        return normalized_emb, "OK"
 
     # ─────────────────────────────────────────────────────────────────────────
     # Patient Registration: Average Multiple Embeddings

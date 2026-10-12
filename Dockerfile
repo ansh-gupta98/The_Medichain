@@ -38,7 +38,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
 RUN python -c "\
 from insightface.app import FaceAnalysis; \
 app = FaceAnalysis(name='buffalo_l', providers=['CPUExecutionProvider'], allowed_modules=['detection', 'recognition']); \
-app.prepare(ctx_id=-1, det_size=(640, 640)); \
+app.prepare(ctx_id=-1, det_size=(320, 320)); \
 print('InsightFace buffalo_l loaded.')" && \
     rm -f /root/.insightface/models/buffalo_l.zip && \
     rm -rf /root/.cache

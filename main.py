@@ -72,11 +72,11 @@ app.include_router(doctor.router, prefix="/doctor", tags=["Doctor"])
 app.include_router(debug.router, prefix="/debug", tags=["Debug — Remove in Production"])
 
 
-@app.get("/", tags=["Root"])
+@app.api_route("/", methods=["GET", "HEAD"], tags=["Root"])
 async def root():
     return {
         "project": "MediChain",
         "status": "running",
         "docs": "/docs",
-        "version": "1.0.0",
+        "version": "1.2.0",
     }
