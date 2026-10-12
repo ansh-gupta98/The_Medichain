@@ -68,14 +68,53 @@ class FirebaseService:
         creds_json_str = os.environ.get("FIREBASE_CREDENTIALS_JSON", "").strip()
         if creds_json_str:
             logger.info("Loading Firebase credentials from FIREBASE_CREDENTIALS_JSON env var.")
+            # Strip accidental surrounding quotes added by Render or copy-paste
+            if (creds_json_str.startswith("'") and creds_json_str.endswith("'")) or \
+               (creds_json_str.startswith('"') and creds_json_str.endswith('"')):
+                creds_json_str = creds_json_str[1:-1].strip()
+
+            creds_dict = None
+
+            # Attempt 1: Standard json.loads
             try:
                 creds_dict = json.loads(creds_json_str)
+            except Exception:
+                pass
+
+            # Attempt 2: If double-escaped, unescape and re-try json.loads
+            if creds_dict is None:
+                try:
+                    unescaped = creds_json_str.encode('utf-8').decode('unicode_escape')
+                    creds_dict = json.loads(unescaped)
+                except Exception:
+                    pass
+
+            # Attempt 3: If single-quoted Python dictionary format ({'type': ...})
+            if creds_dict is None:
+                try:
+                    import ast
+                    parsed = ast.literal_eval(creds_json_str)
+                    if isinstance(parsed, dict):
+                        creds_dict = parsed
+                except Exception:
+                    pass
+
+            # Attempt 4: Base64 decoding if user pasted base64
+            if creds_dict is None:
+                try:
+                    import base64
+                    decoded = base64.b64decode(creds_json_str).decode('utf-8')
+                    creds_dict = json.loads(decoded)
+                except Exception:
+                    pass
+
+            if isinstance(creds_dict, dict) and "project_id" in creds_dict:
                 return credentials.Certificate(creds_dict)
-            except json.JSONDecodeError as e:
-                raise ValueError(
-                    f"FIREBASE_CREDENTIALS_JSON is not valid JSON: {e}\n"
-                    "Make sure you pasted the entire firebase_credentials.json content."
-                )
+
+            raise ValueError(
+                "FIREBASE_CREDENTIALS_JSON could not be parsed into a valid service account JSON.\n"
+                "Please verify you copied the entire content from your Firebase credentials JSON file."
+            )
 
         # ── Method 2: File path (local development) ───────────────────────────
         file_path = settings.FIREBASE_CREDENTIALS_PATH
